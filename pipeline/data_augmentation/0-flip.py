@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Data Augmentation - Flip Image
-"""
+"""Data Augmentation - Flip"""
 import tensorflow as tf
 
 
@@ -9,10 +7,10 @@ def flip_image(image):
     """
     Flips an image horizontally
 
-    Parameters:
-    - image: a 3D tf.Tensor containing the image to flip
+    Args:
+        image: a 3D tf.Tensor containing the image to flip
 
     Returns:
-    - The horizontally flipped image
+        The flipped image
     """
     return tf.image.flip_left_right(image)
