@@ -1,116 +1,83 @@
 #!/usr/bin/env python3
 """
-Defines a class that inherits from tensorflow.keras.layers.Layer
-to perform multi head attention
+Multi Head Attention Layer Implementation
 """
-
-
 import tensorflow as tf
 sdp_attention = __import__('5-sdp_attention').sdp_attention
 
 
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
-    Class to perform multi-head attention
-
-    class constructor:
-        def __init__(self, dm, h)
-
-    public instance attribute:
-        h: number of heads
-        dm: the dimensionality of the model
-        depth: the depth of each attention head
-        Wq: a Dense layer with dm units, used to generate the query matrix
-        Wk: a Dense layer with dm units, used to generate the key matrix
-        Wv: a Dense layer with dm units, used to generate the value matrix
-        linear: a Dense layer with dm units, used to generate attention output
-
-    public instance methods:
-        def call(self, Q, K, V, mask):
-            generates the query, key, and value matrices and
-                outputs the scaled dot product attention
+    Class to perform Multi-Head Attention inheriting from
+    tensorflow.keras.layers.Layer
     """
+
     def __init__(self, dm, h):
         """
         Class constructor
 
-        parameters:
-            dm [int]:
-                represents the dimensionality of the model
-            h [int]:
-                represents the number of heads
-
-        sets the public instance attributes:
-            h: number of heads
-            dm: the dimensionality of the model
-            depth: the depth of each attention head
-            Wq: a Dense layer with dm units, used to generate the query matrix
-            Wk: a Dense layer with dm units, used to generate the key matrix
-            Wv: a Dense layer with dm units, used to generate the value matrix
-            linear: a Dense layer with dm units,
-                used to generate attention output
+        Args:
+            dm: integer representing the dimensionality of the model
+            h: integer representing the number of heads
         """
-        if type(dm) is not int:
-            raise TypeError(
-                "dm must be int representing dimensionality of model")
-        if type(h) is not int:
-            raise TypeError(
-                "h must be int representing number of heads")
         super(MultiHeadAttention, self).__init__()
         self.h = h
         self.dm = dm
         self.depth = dm // h
-        self.Wq = tf.keras.layers.Dense(units=dm)
-        self.Wk = tf.keras.layers.Dense(units=dm)
-        self.Wv = tf.keras.layers.Dense(units=dm)
-        self.linear = tf.keras.layers.Dense(units=dm)
 
-    def split_heads(self, x, batch):
+        self.Wq = tf.keras.layers.Dense(dm)
+        self.Wk = tf.keras.layers.Dense(dm)
+        self.Wv = tf.keras.layers.Dense(dm)
+        self.linear = tf.keras.layers.Dense(dm)
+
+    def split_heads(self, x, batch_size):
         """
-        Splits the last dimension of tensor into (h, dm) and
-            transposes the result so the shape is (batch, h, seq_len, dm)
+        Split the last dimension into (h, depth).
+        Transpose the result such that the shape is
+        (batch_size, h, seq_len, depth)
         """
-        x = tf.reshape(x, (batch, -1, self.h, self.depth))
-        x = tf.transpose(x, perm=[0, 2, 1, 3])
-        return x
+        x = tf.reshape(x, (batch_size, -1, self.h, self.depth))
+        return tf.transpose(x, perm=[0, 2, 1, 3])
 
     def call(self, Q, K, V, mask):
         """
-        Generates the query, key, and value matrices and
-            outputs the scaled dot product attention
+        Calculates multi-head attention
 
-        parameters:
-            Q [tensor of shape (batch, seq_len_q, dk)]:
-                contains the input to generate the query matrix
-            K [tensor of shape (batch, seq_len_v, dk)]:
-                contains the input to generate the key matrix
-            V [tensor of shape (batch, seq_len_v, dv)]:
-                contains the input to generate the value matrix
-            mask [always None]
+        Args:
+            Q: tensor of shape (batch, seq_len_q, dk) with input for query
+            K: tensor of shape (batch, seq_len_v, dk) with input for key
+            V: tensor of shape (batch, seq_len_v, dv) with input for value
+            mask: always None
 
-        returns:
-            outputs, weights:
-                outputs [tensor with last two dimensions (..., seq_len_q, dm)]:
-                    contains the scaled dot product attention
-                weights [tensor with last dimensions
-                        (..., h, seq_len_q, seq_len_v)]:
-                    contains the attention weights
+        Returns:
+            output: tensor of shape (..., seq_len_q, dm) containing scaled
+                    dot product attention output
+            weights: tensor of shape (..., h, seq_len_q, seq_len_v)
+                     containing attention weights
         """
-        # batch = Q.get_shape().as_list()[0]
-        batch = tf.shape(Q)[0]
+        batch_size = tf.shape(Q)[0]
 
-        q = self.Wq(Q)
-        k = self.Wk(K)
-        v = self.Wv(V)
+        # 1. Project inputs through dense layers
+        q = self.Wq(Q)  # (batch_size, seq_len_q, dm)
+        k = self.Wk(K)  # (batch_size, seq_len_v, dm)
+        v = self.Wv(V)  # (batch_size, seq_len_v, dm)
 
-        q = self.split_heads(q, batch)
-        k = self.split_heads(k, batch)
-        v = self.split_heads(v, batch)
+        # 2. Split heads to shape (batch_size, h, seq_len, depth)
+        q = self.split_heads(q, batch_size)
+        k = self.split_heads(k, batch_size)
+        v = self.split_heads(v, batch_size)
 
-        attention, weights = sdp_attention(q, k, v, mask)
+        # 3. Apply Scaled Dot-Product Attention
+        scaled_attention, attention_weights = sdp_attention(q, k, v, mask)
 
-        attention = tf.transpose(attention, perm=[0, 2, 1, 3])
-        concat_attention = tf.reshape(attention, (batch, -1, self.dm))
-        outputs = self.linear(concat_attention)
+        # 4. Transpose back to (batch_size, seq_len_q, h, depth)
+        scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
 
-        return outputs, weights
+        # 5. Concatenate heads back to (batch_size, seq_len_q, dm)
+        concat_attention = tf.reshape(scaled_attention,
+                                      (batch_size, -1, self.dm))
+
+        # 6. Apply final linear layer projection
+        output = self.linear(concat_attention)
+
+        return output, attention_weights
