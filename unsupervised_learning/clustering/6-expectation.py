@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Module that calculates the expectation step in the EM algorithm for a GMM."""
+"""Calculates the expectation step in the EM algorithm for a GMM."""
 import numpy as np
 pdf = __import__('5-pdf').pdf
 
@@ -20,7 +20,8 @@ def expectation(X, pi, m, S):
     n, d = X.shape
     k = pi.shape[0]
 
-    if m.shape != (k, d) or S.shape != (k, d, d) or not np.isclose(np.sum(pi), 1):
+    if m.shape != (k, d) or S.shape != (k, d, d) or \
+       not np.isclose(np.sum(pi), 1):
         return None, None
 
     P = np.zeros((k, n))
