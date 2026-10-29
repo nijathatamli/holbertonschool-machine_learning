@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Data Augmentation - Flip"""
+"""
+Data Augmentation - Flip
+"""
 import tensorflow as tf
 
 
