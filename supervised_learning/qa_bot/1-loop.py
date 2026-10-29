@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
-"""Interactive question loop."""
+""" Interactive prompt loop script """
 
 
-if __name__ == "__main__":
+def create_loop():
+    """
+    Prompts the user with 'Q:' and prints 'A:' in response.
+    Exits with 'A: Goodbye' if user enters exit, quit, goodbye, or bye.
+    """
+    exit_words = ['exit', 'quit', 'goodbye', 'bye']
+
     while True:
-        question = input("Q: ")
-
-        if question.lower() in ["exit", "quit", "goodbye", "bye"]:
-            print("A: Goodbye")
+        try:
+            user_input = input("Q: ").strip()
+            if user_input.lower() in exit_words:
+                print("A: Goodbye")
+                break
+            else:
+                print("A:")
+        except (KeyboardInterrupt, EOFError):
+            print("\nA: Goodbye")
             break
 
-        print("A:")
+
+if __name__ == '__main__':
+    create_loop()
